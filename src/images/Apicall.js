@@ -1,6 +1,6 @@
 import axios from 'axios';
 
-const API_URL = 'https://goods-exporter-bakend.onrender.com';  // Replace with the actual base URL of your API
+const API_URL = 'https://devalaya-backend.onrender.com';  // Replace with the actual base URL of your API
 
 // const API_URL = 'http://localhost:9000'
 
