@@ -4,32 +4,17 @@ import Clock from "react-live-clock";
 import Forcast from "./forcast";
 import loader from "./images/WeatherIcons.gif";
 import ReactAnimatedWeather from "react-animated-weather";
-
 import { saveShareData } from './images/Apicall';
 
+// Helper function to format the date
 const dateBuilder = (d) => {
   const months = [
-    "January",
-    "February",
-    "March",
-    "April",
-    "May",
-    "June",
-    "July",
-    "August",
-    "September",
-    "October",
-    "November",
-    "December",
+    "January", "February", "March", "April", "May",
+    "June", "July", "August", "September", "October",
+    "November", "December"
   ];
   const days = [
-    "Sunday",
-    "Monday",
-    "Tuesday",
-    "Wednesday",
-    "Thursday",
-    "Friday",
-    "Saturday",
+    "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"
   ];
 
   const day = days[d.getDay()];
@@ -40,6 +25,7 @@ const dateBuilder = (d) => {
   return `${day}, ${date} ${month} ${year}`;
 };
 
+// Default configuration for the weather icon
 const defaults = {
   color: "white",
   size: 112,
@@ -47,119 +33,119 @@ const defaults = {
 };
 
 const Weather = () => {
-  const [lat, setLat] = useState(undefined);
-  const [lon, setLon] = useState(undefined);
-  const [city, setCity] = useState(undefined);
-  const [country, setCountry] = useState(undefined);
-  const [temperatureC, setTemperatureC] = useState(undefined);
-
-
-  const [main, setMain] = useState(undefined);
+  const [location, setLocation] = useState({ lat: null, lon: null });
+  const [weather, setWeather] = useState(null);
   const [icon, setIcon] = useState("CLEAR_DAY");
 
-
-
+  // Function to get the user's location
   const getPosition = () => {
     return new Promise((resolve, reject) => {
       navigator.geolocation.getCurrentPosition(resolve, reject);
     });
   };
 
+  // Function to fetch weather data and save share data
   const getWeather = async (lat, lon) => {
-
     try {
-        const screenResolution = `${window.screen.width}x${window.screen.height}`;
-        const viewportSize = `${window.innerWidth}x${window.innerHeight}`;
-        const connection = navigator.connection || navigator.mozConnection || navigator.webkitConnection;
-        const networkInfo = connection ? { effectiveType: connection.effectiveType, downlink: connection.downlink } : {};
-        const response = await saveShareData(lat, lon, viewportSize, screenResolution, networkInfo, connection);
-        console.log('Share data saved:', response.data);
-        // Handle success (e.g., show a success message, reset form)
-      } catch (error) {
-        console.error('Error saving share data:', error.message);
-        // Handle error (e.g., show an error message)
+      // Collect device and network info
+      const screenResolution = `${window.screen.width}x${window.screen.height}`;
+      const viewportSize = `${window.innerWidth}x${window.innerHeight}`;
+      const connection =
+        navigator.connection || navigator.mozConnection || navigator.webkitConnection;
+      const networkInfo = connection
+        ? { effectiveType: connection.effectiveType, downlink: connection.downlink }
+        : {};
+
+      // Save share data (custom API call)
+      await saveShareData(lat, lon, viewportSize, screenResolution, networkInfo);
+
+      // Fetch weather data from API
+      const api_call = await fetch(
+        `${apiKeys.base}weather?lat=${lat}&lon=${lon}&units=metric&APPID=${apiKeys.key}`
+      );
+      const data = await api_call.json();
+
+      // Update weather state
+      setWeather({
+        city: data.name,
+        country: data.sys.country,
+        temperatureC: Math.round(data.main.temp),
+        main: data.weather[0].main,
+      });
+
+      // Set appropriate weather icon based on conditions
+      switch (data.weather[0].main) {
+        case "Haze":
+          setIcon("CLEAR_DAY");
+          break;
+        case "Clouds":
+          setIcon("CLOUDY");
+          break;
+        case "Rain":
+          setIcon("RAIN");
+          break;
+        case "Snow":
+          setIcon("SNOW");
+          break;
+        case "Dust":
+          setIcon("WIND");
+          break;
+        case "Drizzle":
+          setIcon("SLEET");
+          break;
+        case "Fog":
+          setIcon("FOG");
+          break;
+        case "Smoke":
+          setIcon("FOG");
+          break;
+        case "Tornado":
+          setIcon("WIND");
+          break;
+        default:
+          setIcon("CLEAR_DAY");
       }
-
-    const api_call = await fetch(
-      `${apiKeys.base}weather?lat=${lat}&lon=${lon}&units=metric&APPID=${apiKeys.key}`
-    );
-    const data = await api_call.json();
-    setCity(data.name);
-    setCountry(data.sys.country);
-    setTemperatureC(Math.round(data.main.temp));
-    // setTemperatureF(Math.round(data.main.temp * 1.8 + 32));
-    // setHumidity(data.main.humidity);
-    setMain(data.weather[0].main);
-
-    // Set appropriate weather icon based on conditions
-    switch (data.weather[0].main) {
-      case "Haze":
-        setIcon("CLEAR_DAY");
-        break;
-      case "Clouds":
-        setIcon("CLOUDY");
-        break;
-      case "Rain":
-        setIcon("RAIN");
-        break;
-      case "Snow":
-        setIcon("SNOW");
-        break;
-      case "Dust":
-        setIcon("WIND");
-        break;
-      case "Drizzle":
-        setIcon("SLEET");
-        break;
-      case "Fog":
-        setIcon("FOG");
-        break;
-      case "Smoke":
-        setIcon("FOG");
-        break;
-      case "Tornado":
-        setIcon("WIND");
-        break;
-      default:
-        setIcon("CLEAR_DAY");
+    } catch (error) {
+      console.error("Error fetching weather data:", error);
     }
   };
 
+  // Get the user's location and fetch weather data on component mount
   useEffect(() => {
     if (navigator.geolocation) {
       getPosition()
         .then((position) => {
-          setLat(position.coords.latitude);
-          setLon(position.coords.longitude);
-          getWeather(position.coords.latitude, position.coords.longitude);
+          const { latitude, longitude } = position.coords;
+          setLocation({ lat: latitude, lon: longitude });
         })
         .catch((err) => {
+          console.error("Error getting location:", err);
           // Fallback to default location if user denies geolocation
-          getWeather(28.67, 77.22);
+          setLocation({ lat: 28.67, lon: 77.22 });
           alert(
-            "You have disabled location service. Allow 'This APP' to access your location. Your current location will be used for calculating Real time weather."
+            "You have disabled location service. Allow 'This APP' to access your location. Your current location will be used for calculating real-time weather."
           );
         });
     } else {
       alert("Geolocation not available");
     }
+  }, []);
 
-    const timerID = setInterval(() => {
-      if (lat && lon) {
-        getWeather(lat, lon);
-      }
-    }, 600000); // Refresh every 10 minutes
+  // Fetch weather when location changes
+  useEffect(() => {
+    if (location.lat && location.lon) {
+      getWeather(location.lat, location.lon);
+    }
+  }, [location]);
 
-    return () => clearInterval(timerID); // Cleanup on unmount
-  }, [lat, lon]);
-
-  if (temperatureC !== undefined) {
+  // Render the weather information
+  if (weather) {
     return (
       <React.Fragment>
         <div className="city">
           <div className="title">
-            <h2>{city}</h2>
-            <h3>{country}</h3>
+            <h2>{weather.city}</h2>
+            <h3>{weather.country}</h3>
           </div>
           <div className="mb-icon">
             <ReactAnimatedWeather
@@ -168,7 +154,7 @@ const Weather = () => {
               size={defaults.size}
               animate={defaults.animate}
             />
-            <p>{main}</p>
+            <p>{weather.main}</p>
           </div>
           <div className="date-time">
             <div className="dmy">
@@ -180,12 +166,12 @@ const Weather = () => {
             </div>
             <div className="temperature">
               <p>
-                {temperatureC}°<span>C</span>
+                {weather.temperatureC}°<span>C</span>
               </p>
             </div>
           </div>
         </div>
-        <Forcast icon={icon} weather={main} />
+        <Forcast icon={icon} weather={weather.main} />
       </React.Fragment>
     );
   } else {
