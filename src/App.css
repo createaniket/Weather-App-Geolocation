@@ -550,6 +550,7 @@ div#txt {
   .temperature {
     text-align: center;
     width: 100%;
+    top: -155px;
   }
   .copyright {
     padding: 20px;
